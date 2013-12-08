@@ -1,0 +1,35 @@
+import "collection.proto";
+
+message TestResource {
+    optional TestCollection collection = 1;
+}
+
+message TestCollection {
+  optional string version = 1; 
+  optional string href = 2;	
+  repeated collection.Link links = 3;	
+  repeated TestItem items = 4;	
+  repeated collection.Query queries = 5;
+  optional TestTemplate template = 6;
+  optional collection.Error error = 7;	
+}
+
+message TestTemplate {
+  optional TestTemplatePB pb = 1;
+}
+
+message TestTemplatePB {
+  optional string value = 1;
+  optional string key = 2;
+}
+
+message TestItem {
+  optional string href = 1;
+  optional Test pb = 2;
+  repeated collection.Link links = 3;
+}
+
+message Test {
+  optional string value = 1;
+  optional string key = 2;
+}
