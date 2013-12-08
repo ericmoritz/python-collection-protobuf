@@ -12,6 +12,7 @@ def trace(val):
     log.debug("{!r}".format(val))
     return val
 
+
 class Error(Exception):
     def __init__(self, status, title="", code="", message=""):
         self.status = status
@@ -57,6 +58,10 @@ def result_manager(status, resource):
 class Service(object):
     __metaclass__ = ABCMeta
 
+    def __init__(self, *args, **kwargs):
+        super(Service, self).__init__(*args, **kwargs)
+        self.item_hooks = set()
+
     ###================================================================
     ### Public API
     ###================================================================
@@ -66,12 +71,12 @@ class Service(object):
 
         Query the service and return a Result()
         """
-        with result_manager(200, self._ResourcePB()) as result:
+        with result_manager(200, self._resource_pb()) as result:
             self.__query(result, *args, **kwargs)
         return result
 
     def store_bytes(self, byte_string):
-        with result_manager(200, self._ResourcePB()) as result:
+        with result_manager(200, self._resource_pb()) as result:
             self.__store(result, 
                          self.__parse_collection(result, byte_string).template)
         return result
@@ -82,18 +87,19 @@ class Service(object):
 
         Store template into
         """
-        with result_manager(200, self._ResourcePB()) as result:
+        with result_manager(200, self._resource_pb()) as result:
             trace(self.__store(result, template_collection.template))
         return result
 
-    def delete(self, item):
+    def delete(self, *args, **kwargs):
         """
         delete(self, item) -> Result()
         """
         with result_manager(204, None) as result:
-            if not self._delete(item):
+            if not self._delete(*args, **kwargs):
                 result.status = 404
         return result
+
 
     ###================================================================
     ### Abstract properties and methods
@@ -159,12 +165,19 @@ class Service(object):
         Called for the value() returned by _validate_template()
         """
 
+    def _resource_pb(self):
+        """
+        Used to configure the resource message
+        """
+        return self._ResourcePB()
+
     ###================================================================
     ### Internal
     ###================================================================
     def __add_item(self, resource, value):
         item = resource.collection.items.add()
         self._item(item, value)
+        self.__do_item_hooks(item)
     
     def __save_template(self, result, template):
         value = self._validate_template(template)
@@ -205,4 +218,6 @@ class Service(object):
             self.__add_item(resource, item)
         return resource
 
-
+    def __do_item_hooks(self, item):
+        for hook in self.item_hooks:
+            hook(item)
