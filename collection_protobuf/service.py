@@ -13,6 +13,18 @@ def trace(val):
     return val
 
 
+class ItemHooks(object):
+    def __init__(self):
+        self.hooks = []
+
+    def do(self, item, value):
+        for hook in self.hooks:
+            hook(item, value)
+
+    def add(self, hook):
+        self.hooks.append(hook)
+
+
 class Error(Exception):
     def __init__(self, status, title="", code="", message=""):
         self.status = status
@@ -61,7 +73,7 @@ class Service(object):
 
     def __init__(self, *args, **kwargs):
         super(Service, self).__init__(*args, **kwargs)
-        self.item_hooks = set()
+        self.item_hooks = ItemHooks()
 
     ###================================================================
     ### Public API
@@ -89,7 +101,7 @@ class Service(object):
         Store template into
         """
         with result_manager(200, self._resource_pb()) as result:
-            trace(self.__store(result, template_collection.template))
+            self.__store(result, template_collection.template)
         return result
 
     def delete(self, *args, **kwargs):
@@ -175,11 +187,6 @@ class Service(object):
     ###================================================================
     ### Internal
     ###================================================================
-    def __add_item(self, resource, value):
-        item = resource.collection.items.add()
-        self._item(item, value)
-        self.__do_item_hooks(item)
-    
     def __save_template(self, result, template):
         value = self._validate_template(template)
         result.status = self._save(value)
@@ -192,7 +199,6 @@ class Service(object):
         # validate or save raise a service.Error()
         self.__update_template(result.resource, template)
         item = self.__save_template(result, template)
-        self.__add_item(result.resource, item)
         return result
 
     def __parse_collection(self, result, byte_string):
@@ -219,6 +225,8 @@ class Service(object):
             self.__add_item(resource, item)
         return resource
 
-    def __do_item_hooks(self, item):
-        for hook in self.item_hooks:
-            hook(item)
+    def __add_item(self, resource, value):
+        item = resource.collection.items.add()
+        self._item(item, value)
+        self.item_hooks.do(item, value)
+    

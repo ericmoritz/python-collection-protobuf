@@ -24,7 +24,7 @@ class ServiceView(View):
         pass
 
     @abstractmethod
-    def _item_href(self, item):
+    def _item_href(self, item, model):
         pass
 
     @property
@@ -33,8 +33,11 @@ class ServiceView(View):
         s.item_hooks.add(self._item)
         return s
         
-    def _item(self, item):
-        item.href = self._item_href(item)
+    def _item(self, item, model):
+        item.href = self._item_href(item, model)
+
+    def _resource(self, resource):
+        resource.collection.href = self._href
 
     ###================================================================
     ### Render methods
@@ -86,7 +89,7 @@ class ServiceView(View):
         if result.status == 204:
             return self.render_no_content()
 
-        result.resource.collection.href = self._href
+        self._resource(result.resource)
 
         response = self.select_response(accept, result)
         response['link'] = '<{0}>; rel="profile"'.format(self._profile_href)
