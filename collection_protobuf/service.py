@@ -52,6 +52,7 @@ def result_manager(status, resource):
         msg.title = "Internal Server Error"
         msg.code = "500"
         msg.message = "The server have encountered an error, please wait and try again."
+        result.status = 500
         log.exception("Error creating result")
 
 
