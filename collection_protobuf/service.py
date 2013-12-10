@@ -41,11 +41,21 @@ class Error(Exception):
         error.code = code
         error.message = message
 
+def reraise(result):
+    error = result.resource.collection.error
+    # retransmit error
+    raise service.Error(
+        result.status,
+        code=error.code,
+        message=error.message,
+        title=error.title)
+
 
 class Result(object):
-    def __init__(self, status, resource):
+    def __init__(self, status, resource, cached=False):
         self.status = status
         self.resource = resource
+        self.cached = cached
 
 
 @contextmanager
@@ -72,7 +82,7 @@ class Service(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, *args, **kwargs):
-        super(Service, self).__init__(*args, **kwargs)
+        super(Service, self).__init__()
         self.item_hooks = ItemHooks()
 
     ###================================================================
@@ -230,3 +240,28 @@ class Service(object):
         self._item(item, value)
         self.item_hooks.do(item, value)
     
+
+class CachedService(object):
+    def _cached_result(self, *args, **kwargs):
+            try:
+                packet = self._cached_query(*args, **kwargs)
+                if packet:
+                    resource = self._resource_pb()
+                    resource.ParseFromString(packet)
+                    log.debug("Using cached value {!r} {!r} {!r}".format(
+                        self, args, kwargs))
+                    return Result(200, resource, cached=True)
+            except:
+                log.exception("Error parsing cached value")
+        
+    def query(self, nocache=False, *args, **kwargs):
+        if not nocache:
+            cached_result = self._cached_result(*args, **kwargs)
+        else:
+            cached_result = None
+
+        if cached_result:
+            return cached_result
+        else:
+            return super(CachedService, self).query(*args, **kwargs)
+
